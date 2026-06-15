@@ -3,8 +3,7 @@ import cors from "cors";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
-import { TelegramClient, Api } from "telegram";
-import { StringSession } from "telegram/sessions/index.js";
+import { Client, StorageMemory } from "@mtkruto/node";
 
 
 dotenv.config();
@@ -35,20 +34,15 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API_ID = parseInt(process.env.TELEGRAM_API_ID || "31654968");
 const TELEGRAM_API_HASH = process.env.TELEGRAM_API_HASH || "b00f22e26a8c38db4172ce84f7d96ae2";
 
-const stringSession = new StringSession("");
-const mtprotoClient = new TelegramClient(stringSession, TELEGRAM_API_ID, TELEGRAM_API_HASH, {
-  connectionRetries: 5,
-});
+const mtprotoClient = new Client(new StorageMemory(), TELEGRAM_API_ID, TELEGRAM_API_HASH);
 
 // Start MTProto client
 (async () => {
   try {
-    await mtprotoClient.start({
-      botAuthToken: TELEGRAM_BOT_TOKEN,
-    });
-    console.log("MTProto Client connected securely to Telegram!");
+    await mtprotoClient.start({ botToken: TELEGRAM_BOT_TOKEN });
+    console.log("MTKruto Client connected securely to Telegram!");
   } catch (e) {
-    console.error("Failed to connect MTProto client:", e);
+    console.error("Failed to connect MTKruto client:", e);
   }
 })();
 
@@ -135,29 +129,18 @@ app.get("/download/:linkId", async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
     res.setHeader("Content-Type", "application/octet-stream");
 
-    // Use MTProto to bypass 20MB limit
-    const sentMsg = await mtprotoClient.sendMessage("me", { file: link.telegram_file_id });
-    
-    // Attempt to get file size from media
-    let fileSize = null;
-    if (sentMsg.media && sentMsg.media.document) {
-      fileSize = sentMsg.media.document.size;
-      res.setHeader("Content-Length", Number(fileSize));
+    // Use MTKruto to bypass 20MB limit
+    // Get file size
+    try {
+      // MTKruto handles bot file IDs natively
+      for await (const chunk of mtprotoClient.download(link.telegram_file_id)) {
+        res.write(chunk);
+      }
+      res.end();
+    } catch (downloadErr) {
+      console.error("MTKruto Download Error:", downloadErr);
+      throw downloadErr;
     }
-
-    const stream = mtprotoClient.iterDownload({
-      file: sentMsg.media,
-      requestSize: 1024 * 1024 // 1MB chunks
-    });
-
-    for await (const chunk of stream) {
-      res.write(chunk);
-    }
-    
-    res.end();
-
-    // Clean up Saved Messages
-    await mtprotoClient.deleteMessages("me", [sentMsg.id], { revoke: true });
 
   } catch (err) {
     console.error(err);
