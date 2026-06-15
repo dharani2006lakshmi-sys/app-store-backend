@@ -284,8 +284,8 @@ async function pollTelegram() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 chat_id: msg.chat.id,
-                text: `Here is your file_id:\n\n\`${fileId}\`\n\nTap to copy!`,
-                parse_mode: "Markdown"
+                text: `Here is your file_id:\n\n<code>${fileId}</code>\n\nTap to copy!`,
+                parse_mode: "HTML"
               })
             });
           } else if (msg.text && msg.text.startsWith('/start')) {
