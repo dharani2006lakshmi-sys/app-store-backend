@@ -323,5 +323,60 @@ async function pollTelegram() {
 
 setInterval(pollTelegram, 2000);
 
+
+// =========================================================
+// REPORTS ROUTES
+// =========================================================
+
+// Submit a report
+app.post("/api/reports", async (req, res) => {
+  const { app_id, reason, comments } = req.body;
+  if (!app_id || !reason) {
+    return res.status(400).send("App ID and Reason are required");
+  }
+  
+  const { data, error } = await supabase
+    .from("app_reports")
+    .insert([{ app_id, reason, comments }]);
+    
+  if (error) {
+    console.error("Error submitting report:", error);
+    return res.status(500).send(error.message);
+  }
+  res.json({ success: true });
+});
+
+// Fetch all reports (for Admin)
+app.get("/api/reports", async (req, res) => {
+  const { data, error } = await supabase
+    .from("app_reports")
+    .select(`
+      id,
+      reason,
+      comments,
+      created_at,
+      apps ( name, icon_url )
+    `)
+    .order("created_at", { ascending: false });
+    
+  if (error) {
+    return res.status(500).send(error.message);
+  }
+  res.json(data);
+});
+
+// Delete a report
+app.delete("/api/reports/:id", async (req, res) => {
+  const { error } = await supabase
+    .from("app_reports")
+    .delete()
+    .eq("id", req.params.id);
+    
+  if (error) {
+    return res.status(500).send(error.message);
+  }
+  res.json({ success: true });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
