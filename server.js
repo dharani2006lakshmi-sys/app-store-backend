@@ -260,5 +260,38 @@ app.delete("/api/admin/apps/:id", requireAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
+// =========================================================
+// TELEGRAM BOT AUTO-REPLY (Simple Polling)
+// =========================================================
+let lastUpdateId = 0;
+setInterval(async () => {
+  if (!TELEGRAM_BOT_TOKEN) return;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=5`);
+    const data = await res.json();
+    if (data.ok && data.result.length > 0) {
+      for (const update of data.result) {
+        lastUpdateId = update.update_id;
+        const msg = update.message;
+        if (msg && msg.document) {
+          const fileId = msg.document.file_id;
+          const chatId = msg.chat.id;
+          await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: `Here is your file_id:\n\n\`${fileId}\`\n\nTap to copy!`,
+              parse_mode: "Markdown"
+            })
+          });
+        }
+      }
+    }
+  } catch (e) {
+    // Ignore network errors during polling
+  }
+}, 3000);
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
