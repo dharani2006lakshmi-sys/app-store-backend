@@ -142,11 +142,19 @@ app.get("/download/:linkId", async (req, res) => {
       }
       res.end();
       
-      // Increment download count in background
+      // Enforce Unique Downloads based on IP
       if (link.app_id) {
-        supabase.rpc("increment_downloads", { row_id: link.app_id }).then(({error}) => {
-          if (error) console.error("Error incrementing downloads:", error);
-        });
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        supabase.from("download_logs").insert([{ app_id: link.app_id, ip_address: ip }])
+          .then(({ error }) => {
+            if (!error) {
+              // Unique download detected, increment the count!
+              supabase.rpc("increment_downloads", { row_id: link.app_id }).catch(console.error);
+            } else if (error.code !== '23505') { 
+              // 23505 is the Postgres Unique Violation code (already downloaded)
+              console.error("Error logging unique download:", error);
+            }
+          });
       }
     } catch (downloadErr) {
       console.error("MTKruto Download Error:", downloadErr);
