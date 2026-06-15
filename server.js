@@ -121,7 +121,7 @@ app.get("/download/:linkId", async (req, res) => {
 
     const { data: link, error } = await supabase
       .from("app_links")
-      .select("telegram_file_id, file_name")
+      .select("telegram_file_id, file_name, app_id")
       .eq("id", linkId)
       .single();
 
@@ -141,6 +141,13 @@ app.get("/download/:linkId", async (req, res) => {
         res.write(chunk);
       }
       res.end();
+      
+      // Increment download count in background
+      if (link.app_id) {
+        supabase.rpc("increment_downloads", { row_id: link.app_id }).then(({error}) => {
+          if (error) console.error("Error incrementing downloads:", error);
+        });
+      }
     } catch (downloadErr) {
       console.error("MTKruto Download Error:", downloadErr);
       throw downloadErr;
