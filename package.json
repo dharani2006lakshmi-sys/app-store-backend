@@ -11,6 +11,8 @@
     "cors": "^2.8.5",
     "node-fetch": "^3.3.2",
     "dotenv": "^16.4.5",
-    "@supabase/supabase-js": "^2.45.0"
+    "@supabase/supabase-js": "^2.45.0",
+    "telegram": "^2.26.8",
+    "input": "^1.0.1"
   }
 }
