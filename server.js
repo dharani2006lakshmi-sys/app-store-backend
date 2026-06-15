@@ -34,7 +34,11 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API_ID = parseInt(process.env.TELEGRAM_API_ID || "31654968");
 const TELEGRAM_API_HASH = process.env.TELEGRAM_API_HASH || "b00f22e26a8c38db4172ce84f7d96ae2";
 
-const mtprotoClient = new Client(new StorageMemory(), TELEGRAM_API_ID, TELEGRAM_API_HASH);
+const mtprotoClient = new Client({
+  storage: new StorageMemory(),
+  apiId: TELEGRAM_API_ID,
+  apiHash: TELEGRAM_API_HASH
+});
 
 // Start MTProto client
 (async () => {
