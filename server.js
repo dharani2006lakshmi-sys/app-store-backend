@@ -45,6 +45,69 @@ const mtprotoClient = new Client({
   try {
     await mtprotoClient.start({ botToken: TELEGRAM_BOT_TOKEN });
     console.log("MTKruto Client connected securely to Telegram!");
+
+// Phase 3: Telegram Auto-Upload Bot & Caption Parser
+mtprotoClient.on("message", async (ctx) => {
+  try {
+    const me = await mtprotoClient.getMe();
+    if (ctx.chat.id === me.id && ctx.message.document) {
+      const doc = ctx.message.document;
+      const fileName = doc.fileName || "unknown.apk";
+      if (!fileName.endsWith('.apk')) return;
+      
+      let appName = fileName.replace('.apk', '').replace(/_/g, ' ').replace(/-/g, ' ') + " (Auto-Uploaded)";
+      let version = "1.0";
+      let description = "Auto-uploaded from Telegram. Please edit details.";
+      let changelog = "Initial release";
+
+      // Parse caption if available
+      const caption = ctx.message.caption || "";
+      if (caption) {
+        const lines = caption.split("\n").map(l => l.trim()).filter(l => l);
+        if (lines.length > 0) {
+          const firstLine = lines[0];
+          const vMatch = firstLine.match(/v\d+(\.\d+)*/i);
+          if (vMatch) {
+            version = vMatch[0].replace(/v/i, '');
+            appName = firstLine.replace(vMatch[0], '').trim();
+          } else {
+            appName = firstLine;
+          }
+          
+          if (lines.length > 1) {
+            description = lines.slice(1).join("\n");
+            changelog = "Updated from Telegram post";
+          }
+        }
+      }
+
+      console.log(`Auto-uploading parsed app: ${appName} v${version}`);
+      
+      const { data: newApp, error: appErr } = await supabase.from("apps").insert([{
+        name: appName,
+        description: description,
+        version: version,
+        is_published: false
+      }]).select().single();
+      
+      if (appErr) return console.error(appErr);
+      
+      await supabase.from("app_links").insert([{
+        app_id: newApp.id,
+        telegram_file_id: doc.fileId,
+        file_name: fileName,
+        label: `Version ${version}`,
+        changelog: changelog,
+        sort_order: 0
+      }]);
+      
+      await mtprotoClient.sendMessage(me.id, `✅ Success! Automatically added **${appName}** (v${version}) to your App Store! Check your Admin Panel to publish it.`);
+    }
+  } catch(e) {
+    console.error("Auto-upload error:", e);
+  }
+});
+
   } catch (e) {
     console.error("Failed to connect MTKruto client:", e);
   }
