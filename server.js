@@ -84,7 +84,7 @@ app.get("/api/apps", async (req, res) => {
 
     const { data: links, error: linkErr } = await supabase
       .from("app_links")
-      .select("id, app_id, label, file_name, sort_order")
+      .select("id, app_id, label, file_name, sort_order, changelog")
       .order("sort_order", { ascending: true });
 
     if (linkErr) throw linkErr;
@@ -94,7 +94,7 @@ app.get("/api/apps", async (req, res) => {
       ...a,
       links: links
         .filter((l) => l.app_id === a.id)
-        .map((l) => ({ id: l.id, label: l.label, file_name: l.file_name })),
+        .map((l) => ({ id: l.id, label: l.label, file_name: l.file_name, changelog: l.changelog })),
     }));
 
     // group apps under categories
@@ -172,6 +172,46 @@ app.get("/download/:linkId", async (req, res) => {
 });
 
 // =========================================================
+
+// =========================================================
+// PHASE 2: COMMUNITY ROUTES (Reviews & Requests)
+// =========================================================
+app.get("/api/reviews/:app_id", async (req, res) => {
+  const { data, error } = await supabase
+    .from("app_reviews")
+    .select("*")
+    .eq("app_id", req.params.app_id)
+    .order("created_at", { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.post("/api/reviews", async (req, res) => {
+  const { app_id, rating, comment } = req.body;
+  const { error } = await supabase.from("app_reviews").insert([{ app_id, rating, comment }]);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+app.post("/api/requests", async (req, res) => {
+  const { app_name, reason } = req.body;
+  const { error } = await supabase.from("app_requests").insert([{ app_name, reason }]);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+app.get("/api/admin/requests", requireAdmin, async (req, res) => {
+  const { data, error } = await supabase.from("app_requests").select("*").order("created_at", { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.delete("/api/admin/requests/:id", requireAdmin, async (req, res) => {
+  const { error } = await supabase.from("app_requests").delete().eq("id", req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
 // ADMIN: Routes below require a valid Supabase access token
 // (sent as: Authorization: Bearer <token>)
 // =========================================================
