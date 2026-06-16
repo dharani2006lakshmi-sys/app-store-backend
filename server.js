@@ -1,3 +1,4 @@
+const gplay = require('google-play-scraper');
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
@@ -274,6 +275,45 @@ app.delete("/api/admin/categories/:id", requireAdmin, async (req, res) => {
   const { error } = await supabase.from("categories").delete().eq("id", req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ success: true });
+});
+
+
+// Phase 3: Magic Auto-Fill Scraper
+app.get("/api/admin/scrape", requireAdmin, async (req, res) => {
+  const query = req.query.q;
+  if (!query) return res.status(400).json({ error: "No query provided" });
+  try {
+    const results = await gplay.search({ term: query, num: 1 });
+    if (results.length > 0) {
+      const appDetails = await gplay.app({ appId: results[0].appId });
+      return res.json({
+        title: appDetails.title,
+        description: appDetails.description,
+        icon: appDetails.icon,
+        developer: appDetails.developer
+      });
+    }
+    res.status(404).json({ error: "App not found on Play Store" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 3: Dashboard Analytics
+app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
+  try {
+    const { count: appsCount } = await supabase.from('apps').select('*', { count: 'exact', head: true });
+    const { count: requestsCount } = await supabase.from('app_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+    const { count: reviewsCount } = await supabase.from('app_reviews').select('*', { count: 'exact', head: true });
+    
+    // Sum downloads
+    const { data: appsData } = await supabase.from('apps').select('downloads');
+    const totalDownloads = appsData.reduce((acc, a) => acc + (a.downloads || 0), 0);
+    
+    res.json({ appsCount, requestsCount, reviewsCount, totalDownloads });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Create app
