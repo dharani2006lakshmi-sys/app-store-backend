@@ -76,7 +76,7 @@ app.get("/api/apps", async (req, res) => {
 
     const { data: apps, error: appErr } = await supabase
       .from("apps")
-      .select("id, name, description, icon_url, version, category_id, sort_order")
+      .select("id, name, description, icon_url, version, category_id, sort_order, downloads, created_at, updated_at")
       .eq("is_published", true)
       .order("sort_order", { ascending: true });
 
