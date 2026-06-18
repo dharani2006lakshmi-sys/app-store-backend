@@ -49,19 +49,19 @@ const mtprotoClient = new Client({
 // Phase 3: Telegram Auto-Upload Bot & Caption Parser
 mtprotoClient.on("message", async (ctx) => {
   try {
-    const me = await mtprotoClient.getMe();
-    if (ctx.chat.id === me.id && ctx.message.document) {
-      const doc = ctx.message.document;
-      const fileName = doc.fileName || "unknown.apk";
-      if (!fileName.endsWith('.apk')) return;
+    const msg = ctx.message || ctx.msg || ctx; // handle different MTKruto context structures
+    if (msg && msg.document) {
+      const doc = msg.document;
+      const fileName = doc.fileName || doc.file_name || "unknown.apk";
+      if (!fileName.toLowerCase().endsWith('.apk')) return;
       
-      let appName = fileName.replace('.apk', '').replace(/_/g, ' ').replace(/-/g, ' ') + " (Auto-Uploaded)";
+      let appName = fileName.replace(/\.apk$/i, '').replace(/_/g, ' ').replace(/-/g, ' ') + " (Auto-Uploaded)";
       let version = "1.0";
       let description = "Auto-uploaded from Telegram. Please edit details.";
       let changelog = "Initial release";
 
       // Parse caption if available
-      const caption = ctx.message.caption || "";
+      const caption = msg.caption || "";
       if (caption) {
         const lines = caption.split("\n").map(l => l.trim()).filter(l => l);
         if (lines.length > 0) {
@@ -92,16 +92,18 @@ mtprotoClient.on("message", async (ctx) => {
       
       if (appErr) return console.error(appErr);
       
+      const fileId = doc.fileId || doc.file_id || doc.id;
+      
       await supabase.from("app_links").insert([{
         app_id: newApp.id,
-        telegram_file_id: doc.fileId,
+        telegram_file_id: fileId,
         file_name: fileName,
         label: `Version ${version}`,
         changelog: changelog,
         sort_order: 0
       }]);
       
-      await mtprotoClient.sendMessage(me.id, `✅ Success! Automatically added **${appName}** (v${version}) to your App Store! Check your Admin Panel to publish it.`);
+      await mtprotoClient.sendMessage(ctx.chat.id, `✅ Success! Automatically added **${appName}** (v${version}) to your App Store! Check your Admin Panel to publish it.`);
     }
   } catch(e) {
     console.error("Auto-upload error:", e);
