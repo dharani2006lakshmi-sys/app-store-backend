@@ -396,52 +396,7 @@ app.delete("/api/admin/apps/:id", requireAdmin, async (req, res) => {
 // =========================================================
 // TELEGRAM BOT AUTO-REPLY (Robust Polling)
 // =========================================================
-let lastUpdateId = 0;
-let isPolling = false;
-
-async function pollTelegram() {
-  if (!TELEGRAM_BOT_TOKEN || isPolling) return;
-  isPolling = true;
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}`);
-    const data = await res.json();
-    if (data.ok && data.result.length > 0) {
-      for (const update of data.result) {
-        lastUpdateId = update.update_id;
-        const msg = update.message;
-        if (msg) {
-          const fileId = msg.document?.file_id || msg.video?.file_id || msg.audio?.file_id || msg.photo?.[msg.photo.length - 1]?.file_id;
-          if (fileId) {
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: msg.chat.id,
-                text: `Here is your file_id:\n\n<code>${fileId}</code>\n\nTap to copy!`,
-                parse_mode: "HTML"
-              })
-            });
-          } else if (msg.text && msg.text.startsWith('/start')) {
-            await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: msg.chat.id,
-                text: `Hello! Send or forward me any APK file, and I will instantly reply with the file_id for your App Store!`
-              })
-            });
-          }
-        }
-      }
-    }
-  } catch (e) {
-    // Ignore network errors
-  } finally {
-    isPolling = false;
-  }
-}
-
-setInterval(pollTelegram, 2000);
+// Old pollTelegram removed to prevent MTKruto conflicts.
 
 
 // =========================================================
