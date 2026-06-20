@@ -382,7 +382,8 @@ app.post("/api/admin/scrape", requireAdmin, async (req, res) => {
          name: appDetails.title,
          description: appDetails.description ? appDetails.description.substring(0, 800) : "",
          icon_url: appDetails.icon,
-         version: version
+         version: version,
+         genre: appDetails.genre
       });
     } else {
       res.status(404).json({error: "App not found on Play Store"});
