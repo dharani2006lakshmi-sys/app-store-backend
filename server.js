@@ -11,23 +11,8 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
-
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // allow requests with no origin (curl, mobile apps) and allowed origins
-      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-  })
-);
+// Allow ALL origins automatically (fixes Vercel CORS issues)
+app.use(cors());
 
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
