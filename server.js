@@ -365,6 +365,33 @@ app.delete("/api/admin/categories/:id", requireAdmin, async (req, res) => {
 });
 
 // Create app
+// Create app
+app.post("/api/admin/scrape", requireAdmin, async (req, res) => {
+  const { appName } = req.body;
+  if (!appName) return res.status(400).json({error: "No app name provided"});
+  try {
+    const gplay = (await import('google-play-scraper')).default;
+    const searchResults = await gplay.search({ term: appName, num: 1 });
+    if (searchResults && searchResults.length > 0) {
+      const appDetails = await gplay.app({ appId: searchResults[0].appId });
+      let version = "";
+      if (appDetails.version && appDetails.version !== 'Varies with device') {
+        version = appDetails.version;
+      }
+      res.json({
+         name: appDetails.title,
+         description: appDetails.description ? appDetails.description.substring(0, 800) : "",
+         icon_url: appDetails.icon,
+         version: version
+      });
+    } else {
+      res.status(404).json({error: "App not found on Play Store"});
+    }
+  } catch (e) {
+    res.status(500).json({error: e.message});
+  }
+});
+
 app.post("/api/admin/apps", requireAdmin, async (req, res) => {
   const { links, ...appData } = req.body;
 
