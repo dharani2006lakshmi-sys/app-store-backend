@@ -45,20 +45,51 @@ mtprotoClient.on("message", async (ctx) => {
       let description = "Auto-uploaded from Telegram. Please edit details.";
       let changelog = "Initial release";
 
-      // Parse caption if available
+      let iconUrl = null;
+      let categoryId = null;
+
+      // Automatically Scrape Google Play Store Details!
+      try {
+        const gplay = (await import('google-play-scraper')).default;
+        const searchResults = await gplay.search({ term: appName, num: 1 });
+        
+        if (searchResults && searchResults.length > 0) {
+           const appDetails = await gplay.app({ appId: searchResults[0].appId });
+           appName = appDetails.title || appName;
+           description = appDetails.description ? appDetails.description.substring(0, 800) : description;
+           iconUrl = appDetails.icon;
+           
+           // Match Category
+           const genre = appDetails.genre; // e.g. "Entertainment", "Action"
+           if (genre) {
+             const { data: categories } = await supabase.from("categories").select("*");
+             if (categories) {
+               // fuzzy match
+               let matchedCat = categories.find(c => c.name.toLowerCase() === genre.toLowerCase());
+               if (!matchedCat) {
+                  // create it!
+                  const { data: newCat } = await supabase.from("categories").insert([{ name: genre, sort_order: categories.length }]).select().single();
+                  if (newCat) categoryId = newCat.id;
+               } else {
+                  categoryId = matchedCat.id;
+               }
+             }
+           }
+        }
+      } catch (e) {
+         console.log("Play Store scrape failed, falling back to basic data.");
+      }
+
+      // Parse caption to override version or description if user provided a specific one
       const caption = msg.caption || "";
       if (caption) {
         const lines = caption.split("\n").map(l => l.trim()).filter(l => l);
         if (lines.length > 0) {
           const firstLine = lines[0];
-          const vMatch = firstLine.match(/v\d+(\.\d+)*/i);
-          if (vMatch) {
-            version = vMatch[0].replace(/v/i, '');
-            appName = firstLine.replace(vMatch[0], '').trim();
-          } else {
-            appName = firstLine;
+          const cvMatch = firstLine.match(/v\d+(\.\d+)*/i);
+          if (cvMatch) {
+            version = cvMatch[0].replace(/v/i, '');
           }
-          
           if (lines.length > 1) {
             description = lines.slice(1).join("\n");
             changelog = "Updated from Telegram post";
@@ -66,13 +97,15 @@ mtprotoClient.on("message", async (ctx) => {
         }
       }
 
-      console.log(`Auto-uploading parsed app: ${appName} v${version}`);
+      console.log(`Auto-uploading app: ${appName} v${version}`);
       
       const { data: newApp, error: appErr } = await supabase.from("apps").insert([{
         name: appName,
         description: description,
         version: version,
-        is_published: false
+        icon_url: iconUrl,
+        category_id: categoryId,
+        is_published: true  // Auto-publish it so you don't have to go to admin!
       }]).select().single();
       
       if (appErr) return console.error(appErr);
@@ -88,7 +121,7 @@ mtprotoClient.on("message", async (ctx) => {
         sort_order: 0
       }]);
       
-      await mtprotoClient.sendMessage(ctx.chat.id, `✅ Success! Automatically added **${appName}** (v${version}) to your App Store! Check your Admin Panel to publish it.`);
+      await mtprotoClient.sendMessage(ctx.chat.id, `✅ Magic Auto-Pilot Success!\n\nGrabbed **${appName}** from Google Play.\nIcon, description, and category automatically saved & published to your App Store!`);
     }
   } catch(e) {
     console.error("Auto-upload error:", e);
