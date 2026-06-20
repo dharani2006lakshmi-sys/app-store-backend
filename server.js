@@ -59,6 +59,11 @@ mtprotoClient.on("message", async (ctx) => {
            description = appDetails.description ? appDetails.description.substring(0, 800) : description;
            iconUrl = appDetails.icon;
            
+           // Extract real version from Google Play
+           if (appDetails.version && appDetails.version !== 'Varies with device') {
+             version = appDetails.version;
+           }
+           
            // Match Category
            const genre = appDetails.genre; // e.g. "Entertainment", "Action"
            if (genre) {
